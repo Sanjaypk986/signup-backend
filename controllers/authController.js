@@ -41,9 +41,14 @@ const verifyLogin = async (req, res) => {
     } catch (error) {
       res.status(401).send("Unauthoraized Access!");
     }
-  }else{
-    res.json({verified:false})
+  } else {
+    res.json({ verified: false });
   }
 };
 
-module.exports = { login, verifyLogin };
+const logout = async (req, res) => {
+  res.cookie("token", "", { expires: new Date(0), httpOnly: true });
+  res.send("Logged Out");
+};
+
+module.exports = { login, verifyLogin, logout };
