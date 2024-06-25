@@ -1,6 +1,6 @@
 const bcrypt = require("bcrypt");
 const User = require("../models/userModel");
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
 
 const login = async (req, res) => {
   try {
@@ -18,9 +18,12 @@ const login = async (req, res) => {
     const passwordMatch = bcrypt.compareSync(data.password, user.password);
 
     if (passwordMatch) {
-        const token = jwt.sign({_id:user._id, email:user.email }, process.env.JWT_TOKEN);
-        res.cookie('token',token,{httpOnly:true})
-        res.send("Login success");
+      const token = jwt.sign(
+        { _id: user._id, email: user.email },
+        process.env.JWT_KEY
+      );
+      res.cookie("token", token, { httpOnly: true });
+      res.send("Login success");
     } else {
       res.status(401).send("Unauthorized Access! Invalid password");
     }
@@ -29,4 +32,18 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = login;
+const verifyLogin = async (req, res) => {
+  if (req.cookies.token) {
+    try {
+      const payload = jwt.verify(req.cookies.token, process.env.JWT_KEY);
+      console.log(payload);
+      res.json({ verified: true });
+    } catch (error) {
+      res.status(401).send("Unauthoraized Access!");
+    }
+  }else{
+    res.json({verified:false})
+  }
+};
+
+module.exports = { login, verifyLogin };
