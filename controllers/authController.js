@@ -1,5 +1,6 @@
 const bcrypt = require("bcrypt");
 const User = require("../models/userModel");
+const jwt = require('jsonwebtoken');
 
 const login = async (req, res) => {
   try {
@@ -17,7 +18,9 @@ const login = async (req, res) => {
     const passwordMatch = bcrypt.compareSync(data.password, user.password);
 
     if (passwordMatch) {
-      res.send("Login success");
+        const token = jwt.sign({_id:user._id, email:user.email }, process.env.JWT_TOKEN);
+        res.cookie('token',token,{httpOnly:true})
+        res.send("Login success");
     } else {
       res.status(401).send("Unauthorized Access! Invalid password");
     }
