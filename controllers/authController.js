@@ -2,53 +2,54 @@ const bcrypt = require("bcrypt");
 const User = require("../models/userModel");
 const jwt = require("jsonwebtoken");
 
-const login = async (req, res) => {
+const login = async (req, res, next) => {
   try {
-    // Get the data from req.body
-    const data = req.body;
-
-    // Check given email with database email
-    const user = await User.findOne({ email: data.email });
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(401).send("Unauthorized Access! Invalid email");
+      return res.status(401).json({ message: "Unauthorized Access! Invalid email" });
     }
 
-    // Check password with database
-    const passwordMatch = bcrypt.compareSync(data.password, user.password);
+    const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (passwordMatch) {
       const token = jwt.sign(
         { _id: user._id, email: user.email },
-        process.env.JWT_KEY
+        process.env.JWT_KEY,
+        { expiresIn: "1h" }
       );
-      res.cookie("token", token, { httpOnly: true });
-      res.send("Login success");
+      res.cookie("token", token, { httpOnly: true, secure: true, sameSite: 'None' });
+      res.json({ message: "Login success" });
     } else {
-      res.status(401).send("Unauthorized Access! Invalid password");
+      res.status(401).json({ message: "Unauthorized Access! Invalid password" });
     }
   } catch (error) {
-    res.status(500).send("Internal Server Error");
+    next(error); // Pass error to centralized error handler
   }
 };
 
-const verifyLogin = async (req, res) => {
-  if (req.cookies.token) {
-    try {
-      const payload = jwt.verify(req.cookies.token, process.env.JWT_KEY);
-      console.log(payload);
-      res.json({ verified: true });
-    } catch (error) {
-      res.status(401).send("Unauthoraized Access!");
+const verifyLogin = async (req, res, next) => {
+  try {
+    const { token } = req.cookies;
+    if (!token) {
+      return res.json({ verified: false });
     }
-  } else {
-    res.json({ verified: false });
+
+    const payload = jwt.verify(token, process.env.JWT_KEY);
+    res.json({ verified: true });
+  } catch (error) {
+    next(error); // Pass error to centralized error handler
   }
 };
 
-const logout = async (req, res) => {
-  res.cookie("token", "", { expires: new Date(0), httpOnly: true });
-  res.send("Logged Out");
+const logout = async (req, res, next) => {
+  try {
+    res.cookie("token", "", { expires: new Date(0), httpOnly: true, secure: true, sameSite: 'None' });
+    res.json({ message: "Logged Out" });
+  } catch (error) {
+    next(error); // Pass error to centralized error handler
+  }
 };
 
 module.exports = { login, verifyLogin, logout };

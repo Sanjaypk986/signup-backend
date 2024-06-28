@@ -1,38 +1,41 @@
-const User = require("../models/userModel");
 const bcrypt = require("bcrypt");
+const User = require("../models/userModel");
 const saltRounds = 10;
 
-const getAllUsers = async (req, res) => {
-  const users = await User.find({});
-  res.json(users);
-};
-const getUserById = async (req, res) => {
+const getAllUsers = async (req, res, next) => {
   try {
-    const user = await User.findById(req.params.userId).exec();
-    res.json(user);
+    const users = await User.find({});
+    res.json(users);
   } catch (error) {
-    res.status(500).json({ message: "Error finding user", error });
+    next(error); // Pass error to centralized error handler
   }
 };
-const addUser = (req, res) => {
-  // get data from body
-  const data = req.body;
-  // get password
-  const password = data.password;
-  // enrypt password
-  const hash = bcrypt.hashSync(password, saltRounds);
-  // create document using req.body, pass as object and change password from data
-  //using spred operator to get all data and we want to write changable value and set that hash.
-  const user = new User({
-    ...data,
-    password: hash,
-  });
-  // save user
-  user.save();
-  // send response
-  res.json(user);
+
+const getUserById = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.userId).exec();
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json(user);
+  } catch (error) {
+    next(error); // Pass error to centralized error handler
+  }
 };
-const updateUser = async (req, res) => {
+
+const addUser = async (req, res, next) => {
+  try {
+    const { password, ...data } = req.body;
+    const hash = await bcrypt.hash(password, saltRounds);
+    const user = new User({ ...data, password: hash });
+    await user.save();
+    res.json(user);
+  } catch (error) {
+    next(error); // Pass error to centralized error handler
+  }
+};
+
+const updateUser = async (req, res, next) => {
   try {
     const updatedUser = await User.findByIdAndUpdate(
       req.params.userId,
@@ -44,12 +47,20 @@ const updateUser = async (req, res) => {
     }
     res.json(updatedUser);
   } catch (error) {
-    res.status(500).json({ message: "Error updating user", error });
+    next(error); // Pass error to centralized error handler
   }
 };
-const deleteUser = async (req, res) => {
-  const user = await User.findByIdAndDelete(req.params.userId);
-  res.send("user deleted");
+
+const deleteUser = async (req, res, next) => {
+  try {
+    const user = await User.findByIdAndDelete(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json({ message: "User deleted" });
+  } catch (error) {
+    next(error); // Pass error to centralized error handler
+  }
 };
 
 module.exports = { getAllUsers, getUserById, addUser, updateUser, deleteUser };
